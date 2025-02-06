@@ -1,63 +1,89 @@
-[![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/big-data-europe/Lobby)
 
-# Changes
+# Hadoop Tutorial
 
-Version 2.0.0 introduces uses wait_for_it script for the cluster startup
+This tutorial will guide you through setting up and running a basic Hadoop MapReduce job using Docker.
 
-# Hadoop Docker
+## Prerequisites
 
-## Supported Hadoop Versions
-See repository branches for supported hadoop versions
+* Docker and Docker Compose installed.
 
-## Quick Start
+## Setup
 
-To deploy an example HDFS cluster, run:
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/jackdmarquez/docker-hadoop.git hadoop_docker_deployment
+   ```
+
+2. **Navigate to the project directory:**
+   ```bash
+   cd hadoop_docker_deployment
+   ```
+
+3. **Build the Namenode Docker image:**
+   ```bash
+   cd namenode
+   docker build -t cosc/hadoop-namenode .
+   cd ..
+   ```
+
+4. **Start the Hadoop cluster using Docker Compose:**
+   ```bash
+   docker-compose up -d
+   ```
+
+5. **Access the Namenode container:**
+   ```bash
+   docker exec -it namenode /bin/bash
+   ```
+
+## Running a MapReduce Job
+
+**Important:** The following commands are executed *inside* the namenode container's bash shell.  You first enter the container (step 5 above), and then execute the `hdfs` and `hadoop` commands.
+
+1. **List files in the `/tmp` directory (inside the container):**
+   ```bash
+   ls /tmp
+   ```
+
+2. **Change directory to `/tmp` (inside the container):**
+   ```bash
+   cd /tmp/
+   ```
+
+3. **Create the input directory in HDFS:**
+   ```bash
+   hdfs dfs -mkdir -p /user/root/input
+   ```
+
+4. **Upload the input file (Alice.txt) to HDFS:**
+   ```bash
+   hdfs dfs -put Alice.txt /user/root/input
+   ```
+
+5. **List the files in the input directory in HDFS:**
+   ```bash
+   hdfs dfs -ls /user/root/input
+   ```
+
+6. **Run the WordCount MapReduce job:**
+   ```bash
+   hadoop jar hadoop-mapreduce-examples-2.7.1-sources.jar org.apache.hadoop.examples.WordCount input output
+   ```
+
+7. **View the output of the WordCount job:**
+   ```bash
+   hdfs dfs -cat /user/root/output/part-r-00000
+   ```
+
+8. **Copy the output file from HDFS to the local filesystem (inside the container):**
+   ```bash
+   hadoop fs -copyToLocal /user/root/output/part-r-00000 count.txt
+   ```
+
+9. **View the contents of the output file:**
+   ```bash
+   more count.txt
+   ```
+
+This completes the basic Hadoop MapReduce tutorial.  You should now see the word counts from `Alice.txt` in the `count.txt` file (inside the container).  Remember to exit the container when you're finished. You can do so by typing `exit` in the container's shell.
 ```
-  docker-compose up
-```
-
-Run example wordcount job:
-```
-  make wordcount
-```
-
-Or deploy in swarm:
-```
-docker stack deploy -c docker-compose-v3.yml hadoop
-```
-
-`docker-compose` creates a docker network that can be found by running `docker network list`, e.g. `dockerhadoop_default`.
-
-Run `docker network inspect` on the network (e.g. `dockerhadoop_default`) to find the IP the hadoop interfaces are published on. Access these interfaces with the following URLs:
-
-* Namenode: http://<dockerhadoop_IP_address>:9870/dfshealth.html#tab-overview
-* History server: http://<dockerhadoop_IP_address>:8188/applicationhistory
-* Datanode: http://<dockerhadoop_IP_address>:9864/
-* Nodemanager: http://<dockerhadoop_IP_address>:8042/node
-* Resource manager: http://<dockerhadoop_IP_address>:8088/
-
-## Configure Environment Variables
-
-The configuration parameters can be specified in the hadoop.env file or as environmental variables for specific services (e.g. namenode, datanode etc.):
-```
-  CORE_CONF_fs_defaultFS=hdfs://namenode:8020
-```
-
-CORE_CONF corresponds to core-site.xml. fs_defaultFS=hdfs://namenode:8020 will be transformed into:
-```
-  <property><name>fs.defaultFS</name><value>hdfs://namenode:8020</value></property>
-```
-To define dash inside a configuration parameter, use triple underscore, such as YARN_CONF_yarn_log___aggregation___enable=true (yarn-site.xml):
-```
-  <property><name>yarn.log-aggregation-enable</name><value>true</value></property>
-```
-
-The available configurations are:
-* /etc/hadoop/core-site.xml CORE_CONF
-* /etc/hadoop/hdfs-site.xml HDFS_CONF
-* /etc/hadoop/yarn-site.xml YARN_CONF
-* /etc/hadoop/httpfs-site.xml HTTPFS_CONF
-* /etc/hadoop/kms-site.xml KMS_CONF
-* /etc/hadoop/mapred-site.xml  MAPRED_CONF
-
-If you need to extend some other configuration file, refer to base/entrypoint.sh bash script.
